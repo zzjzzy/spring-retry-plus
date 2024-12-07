@@ -12,6 +12,12 @@ import org.springframework.retry.annotation.EnableRetry;
 @EnableRetry
 public class App {
 
+    /**
+     * 启动时修改数据库链接信息
+     * -Dspring.datasource.url=jdbc:mysql://127.0.0.1:3306/test
+     * -Dspring.datasource.username=<USERNAME>
+     * -Dspring.datasource.password=<PASSWORD>
+     */
     public static void main(String[] args) throws Exception {
         ConfigurableApplicationContext context = new SpringApplicationBuilder()
                 .sources(App.class)

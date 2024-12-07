@@ -11,7 +11,5 @@ spring:
       min-idle: 5
       max-lifetime: 1800000
       connection-test-query: SELECT 1
-
-spring:
   retryplus:
     enable: true
