@@ -71,6 +71,8 @@ CREATE TABLE `bean_retry_record` (
 - 当定时任务重试次数达到RetryablePlus.dbRetryTimes次数后或者重试成功后，不会再进行重试。
 
 #### 使用限制
-因为要通过json反序列化方法参数，所以注解的方法参数类型必须有无参构造函数<br/>
-不支持@Async和@RetryablePlus同时使用，原因请查看com.github.gitcat.spring.retryplus.listener.RetryPlusListener.close注释<br/>
+因为要序列化方法参数为string以便保存到数据库，且需要从string反序列化为java对象，所以方法参数必须支持序列化反序列化。
+此处所说序列化反序列化是指com.github.gitcat.spring.retryplus.serializer.ParamSerializer支持的序列化反序列化方式。
+如果已有序列化实现无法满足要求，可自行实现com.github.gitcat.spring.retryplus.serializer.ParamSerializer<br/>
+不支持@Async和@RetryablePlus同时使用，原因请查看com.github.gitcat.spring.retryplus.listener.RetryPlusListener.close注释。<br/>
 

@@ -1,20 +1,17 @@
 package com.github.gitcat.spring.retryplus.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.gitcat.spring.retryplus.constant.Constants;
-import com.github.gitcat.spring.retryplus.constant.NULL_VALUE;
-import com.google.protobuf.Message;
 import com.github.gitcat.spring.retryplus.context.RetryFrom;
 import com.github.gitcat.spring.retryplus.context.RetryInfoHolder;
 import com.github.gitcat.spring.retryplus.context.RetryInfoHolder.RetryInfo;
 import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfo;
 import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfoRepository;
+import com.github.gitcat.spring.retryplus.serializer.ParamSerializer;
+import com.github.gitcat.spring.retryplus.serializer.ParamSerializerHolder;
 import com.github.gitcat.spring.retryplus.util.ClassUtil;
 import com.github.gitcat.spring.retryplus.util.JsonUtil;
-import com.github.gitcat.spring.retryplus.util.ProtobufUtil;
 import com.github.gitcat.spring.retryplus.util.RetryPlusSpringUtil;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +24,8 @@ public class RetryService {
 
     @Autowired
     private BeanRetryInfoRepository beanRetryInfoRepository;
+    @Autowired
+    private ParamSerializerHolder paramSerializerHolder;
 
     public void retryAll(int pageSize, int maxLoopCount) {
         try {
@@ -79,70 +78,26 @@ public class RetryService {
         String beanMethod = retryInfo.getBeanMethod();
         Method method = beanClass.getMethod(beanMethod, methodParamClasses);
 
-        Type[] methodGenericParamTypes = method.getGenericParameterTypes();
+        Type[] methodDefTypes = method.getGenericParameterTypes();
         List realParamTypes = JsonUtil.parseObj(retryInfo.getRealParamTypes(), List.class);
         List paramValues = JsonUtil.parseObj(retryInfo.getParamValues(), List.class);
         Object[] args = new Object[paramValues.size()];
         for (int i = 0; i < paramValues.size(); i++) {
             String paramValueStr = paramValues.get(i).toString();
-            if (realParamTypes.get(i).toString().equals(NULL_VALUE.class.getName())) {
-                // null值
-                args[i] = null;
-                continue;
-            }
-            Type genericParamType = methodGenericParamTypes[i];
-            // 由于实际参数类型无法保存泛型信息或基本数据类型信息
-            // 所以，如果方法的参数类型是泛型或者基本类型，则以方法的参数类型进行参数值转换
-            // 否则以实际参数类型进行转换
-            if (genericParamType instanceof ParameterizedType) {
-                args[i] = JsonUtil.parseObj(paramValueStr, new TypeReference<Object>() {
-                    @Override
-                    public Type getType() {
-                        return genericParamType;
-                    }
-                });
-            } else if (genericParamType instanceof Class) {
-                Class<?> paramType = (Class<?>) genericParamType;
-                if (!paramType.isPrimitive()) {
-                    paramType = Class.forName(realParamTypes.get(i).toString());
+            Class realParamType = Class.forName(realParamTypes.get(i).toString());
+            Type methodDefType = methodDefTypes[i];
+            Object paramValue = null;
+            for (ParamSerializer serializer : paramSerializerHolder.getParamSerializers()) {
+                if (serializer.supportDeserialize(paramValueStr, realParamType, methodDefType)) {
+                    paramValue = serializer.deserialize(paramValueStr, realParamType, methodDefType);
+                    break;
                 }
-                if (ClassUtil.isToStringType(paramType)) {
-                    args[i] = convertBasicType(paramValueStr, paramType);
-                } else if (Message.class.isAssignableFrom(paramType)) {
-                    args[i] = ProtobufUtil.messageFromJson(paramValueStr, paramType);
-                } else {
-                    args[i] = JsonUtil.parseObj(paramValueStr, paramType);
-                }
-            } else {
-                log.error("不支持的方法参数类型:{}", genericParamType);
-                throw new RuntimeException("不支持的方法参数类型:" + genericParamType);
             }
+            // 对参数做后处理
+            paramValue = postProcessParam(paramValueStr, realParamType, methodDefType, i, paramValue);
+            args[i] = paramValue;
         }
         method.invoke(bean, args);
-    }
-
-    private Object convertBasicType(String valStr, Class paramType) {
-        if (paramType == String.class) {
-            return valStr;
-        } else if (paramType == Integer.class || paramType == int.class) {
-            return Integer.valueOf(valStr);
-        } else if (paramType == Long.class || paramType == long.class) {
-            return Long.valueOf(valStr);
-        } else if (paramType == Boolean.class || paramType == boolean.class) {
-            return Boolean.valueOf(valStr);
-        } else if (paramType == Double.class || paramType == double.class) {
-            return Double.valueOf(valStr);
-        } else if (paramType == Float.class || paramType == float.class) {
-            return Float.valueOf(valStr);
-        } else if (paramType == Short.class || paramType == short.class) {
-            return Short.valueOf(valStr);
-        } else if (paramType == Byte.class || paramType == byte.class) {
-            return Byte.valueOf(valStr);
-        } else if (paramType == Character.class || paramType == char.class) {
-            return valStr.charAt(0);
-        } else {
-            throw new IllegalArgumentException("unsupported type:" + paramType);
-        }
     }
 
 
@@ -172,5 +127,18 @@ public class RetryService {
      */
     public void finallyDoRetry(BeanRetryInfo record) {
 
+    }
+
+    /**
+     * 扩展接口，业务可以覆写此方法，对参数做后处理
+     * @param paramValueStr 参数值序列化后的字符串值
+     * @param realParamType 参数的真实类型
+     * @param methodDefType 方法定义的参数类型
+     * @param paramIdx 参数在方法定义中的位置
+     * @param paramValue 参数值
+     */
+    public Object postProcessParam(String paramValueStr, Class realParamType, Type methodDefType,
+            int paramIdx, Object paramValue) {
+        return paramValue;
     }
 }

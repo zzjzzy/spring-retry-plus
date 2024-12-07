@@ -3,14 +3,14 @@ package com.github.gitcat.spring.retryplus.listener;
 import com.github.gitcat.spring.retryplus.annotation.RetryablePlus;
 import com.github.gitcat.spring.retryplus.constant.Constants;
 import com.github.gitcat.spring.retryplus.constant.NULL_VALUE;
-import com.google.protobuf.Message;
 import com.github.gitcat.spring.retryplus.context.RetryInfoHolder;
 import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfo;
 import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfoRepository;
-import com.github.gitcat.spring.retryplus.util.ClassUtil;
+import com.github.gitcat.spring.retryplus.serializer.ParamSerializer;
+import com.github.gitcat.spring.retryplus.serializer.ParamSerializerHolder;
 import com.github.gitcat.spring.retryplus.util.JsonUtil;
-import com.github.gitcat.spring.retryplus.util.ProtobufUtil;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +33,8 @@ public class RetryPlusListener implements RetryListener {
 
     @Autowired
     private BeanRetryInfoRepository beanRetryInfoRepository;
+    @Autowired
+    private ParamSerializerHolder paramSerializerHolder;
 
     @Override
     public <T, E extends Throwable> boolean open(RetryContext context, RetryCallback<T, E> callback) {
@@ -88,40 +90,51 @@ public class RetryPlusListener implements RetryListener {
                     beanRetryInfo.setMaxRetryTimes(mergedAnnotation.dbRetryTimes());
                     beanRetryInfo.setBeanClass(invocation.getThis().getClass().getName());
                     beanRetryInfo.setBeanMethod(method.getName());
-                    List<String> realParamTypes = new ArrayList<>();
-                    List<String> paramValues = new ArrayList<>();
-                    for (Object param : invocation.getArguments()) {
-                        if (param == null) {
-                            paramValues.add(NULL_VALUE.class.getName());
-                            realParamTypes.add(NULL_VALUE.class.getName());
-                            continue;
-                        }
-                        Class<?> paramType = param.getClass();
-                        realParamTypes.add(paramType.getName());
-                        if (param instanceof Message) {
-                            paramValues.add(ProtobufUtil.toJson((Message) param));
-                        } else if (ClassUtil.isToStringType(paramType)) {
-                            paramValues.add(String.valueOf(param));
-                        } else {
-                            paramValues.add(JsonUtil.toJsonStr(param));
-                        }
-                    }
-                    Class<?>[] methodParamClasses = method.getParameterTypes();
-                    List<String> methodParamTypes = new ArrayList<>();
-                    for (int i = 0; i < methodParamClasses.length; i++) {
-                        Class<?> methodParamClass = methodParamClasses[i];
-                        if (methodParamClass.isPrimitive()) {
-                            methodParamTypes.add(Constants.PRIMITIVE_PREFIX + methodParamClass.getName());
-                        } else {
-                            methodParamTypes.add(methodParamClass.getName());
-                        }
-                    }
-                    beanRetryInfo.setParamValues(JsonUtil.toJsonStr(paramValues));
-                    beanRetryInfo.setMethodParamTypes(JsonUtil.toJsonStr(methodParamTypes));
-                    beanRetryInfo.setRealParamTypes(JsonUtil.toJsonStr(realParamTypes));
                     beanRetryInfo.setExceptionMsg(throwable.getMessage());
                     long nextRetryInterval = calNextRetryInterval(0, mergedAnnotation);
                     beanRetryInfo.setNextRetryInterval(nextRetryInterval);
+
+                    // 需要保存的序列化后的参数值、参数类型、方法定义的参数类型
+                    List<String> serializedParamValues = new ArrayList<>();
+                    List<String> realParamStrTypes = new ArrayList<>();
+                    List<String> methodDefStrTypes = new ArrayList<>();
+
+                    Object[] paramValues = invocation.getArguments();
+                    // 方法定义的参数类型
+                    Class<?>[] methodDefClassTypes = method.getParameterTypes();
+                    // 方法定义的参数类型，包含泛型信息
+                    Type[] methodDefTypes = method.getGenericParameterTypes();
+                    for (int i = 0; i < paramValues.length; i++) {
+                        Object paramValue = paramValues[i];
+                        Class<?> paramClass = paramValue == null ? NULL_VALUE.class : paramValue.getClass();
+                        Class<?> methodDefClassType = methodDefClassTypes[i];
+                        Type methodDefType = methodDefTypes[i];
+
+                        realParamStrTypes.add(paramClass.getName());
+                        String methodDefStrType = methodDefClassType.getName();
+                        if (methodDefClassType.isPrimitive()) {
+                            // 反序列化的时候需要通过Class.forName获取class对象，然后找到对应的方法
+                            // 原始类型通过Class.forName获取class对象会报错
+                            // 这里特殊处理一下
+                            methodDefStrType = Constants.PRIMITIVE_PREFIX + methodDefStrType;
+                        }
+                        methodDefStrTypes.add(methodDefStrType);
+                        String serializedParamValue = null;
+                        for (ParamSerializer serializer : paramSerializerHolder.getParamSerializers()) {
+                            if (serializer.supportSerialize(paramValue, methodDefType)) {
+                                serializedParamValue = serializer.serialize(paramValue, methodDefType);
+                                break;
+                            }
+                        }
+                        if (serializedParamValue == null) {
+                            throw new RuntimeException("未找到可用的ParamSerializer");
+                        }
+                        serializedParamValues.add(serializedParamValue);
+                    }
+
+                    beanRetryInfo.setParamValues(JsonUtil.toJsonStr(serializedParamValues));
+                    beanRetryInfo.setMethodParamTypes(JsonUtil.toJsonStr(methodDefStrTypes));
+                    beanRetryInfo.setRealParamTypes(JsonUtil.toJsonStr(realParamStrTypes));
                     // 保存失败不影响主流程
                     try {
                         beanRetryInfoRepository.saveRetryRecord(beanRetryInfo);
@@ -131,6 +144,7 @@ public class RetryPlusListener implements RetryListener {
                 }
             }
         } catch (Throwable e) {
+            // 有异常直接抛出，这样可以在开发阶段就发现问题
             throw new RuntimeException(e);
         }
     }

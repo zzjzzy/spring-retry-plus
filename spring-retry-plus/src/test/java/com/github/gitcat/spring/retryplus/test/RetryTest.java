@@ -2,17 +2,17 @@ package com.github.gitcat.spring.retryplus.test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.github.gitcat.spring.retryplus.test.assist.BeanRetryInfoTestRepository;
-import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean;
-import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean.TestEntity;
-import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean.TestGenericEntity;
 import com.github.gitcat.spring.retryplus.constant.Constants;
 import com.github.gitcat.spring.retryplus.listener.RetryPlusListener;
 import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfo;
 import com.github.gitcat.spring.retryplus.service.RetryService;
-import com.github.gitcat.spring.retryplus.util.JsonUtil;
+import com.github.gitcat.spring.retryplus.test.assist.BeanRetryInfoTestRepository;
+import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean;
+import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean.TestEntity;
+import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean.TestGenericEntity;
 import com.github.gitcat.spring.retryplus.test.stub.Hello.BaseRequest;
-import com.github.gitcat.spring.retryplus.test.stub.Hello.BaseRequest.Builder;
+import com.github.gitcat.spring.retryplus.util.JsonUtil;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -57,17 +57,9 @@ public class RetryTest {
     public void testNoExpCall() {
         RetryTestBean.clearInfo();
         System.out.println("testRetry start");
-        HashMap map = new HashMap();
-        map.put("k1", "v1");
-        Builder builder = BaseRequest.newBuilder();
-        builder.setTraceId("traceId001");
-        builder.setUserId("userId001");
-        builder.setOrderId("orderId001");
-        retryTestBean.testCall(1, 2, true, false, map,
-                Arrays.asList("1", "2"), Arrays.asList(new TestEntity(11, "str2")),
-                new TestEntity(22, "str2"),
-                new TestGenericEntity<TestEntity>(new TestEntity(33, "str3"), "str4"),
-                builder.build(), null, "objTestVal");
+        retryTestBean.testCall(RetryTestBean.paramA, RetryTestBean.paramB, RetryTestBean.paramC, RetryTestBean.paramD,
+                RetryTestBean.paramE, RetryTestBean.paramF, RetryTestBean.paramG, RetryTestBean.paramH,
+                RetryTestBean.paramI, RetryTestBean.paramJ, RetryTestBean.paramNullTest, RetryTestBean.paramObjTest);
         Assert.isTrue(RetryTestBean.counter.get() == 1, "重试次数不正确");
         Assert.isNull(BeanRetryInfoTestRepository.savedBeanRetryInfo, "重试记录不正确");
         System.out.println("testRetry end");
@@ -80,28 +72,17 @@ public class RetryTest {
     public void testExpCall() throws JsonProcessingException {
         RetryTestBean.clearInfo();
         System.out.println("testRetryExp start");
-        HashMap map = new HashMap();
-        map.put("k1", "v1");
-        Builder builder = BaseRequest.newBuilder();
-        builder.setTraceId("traceId001");
-        builder.setUserId("userId001");
-        builder.setOrderId("orderId001");
         try {
-            List<String> f = new LinkedList<>();
-            f.add("1");
-            f.add("2");
-            retryTestBean.testExpCall(1, 2, true, false, map,
-                    f, Arrays.asList(new TestEntity(11, "str2")),
-                    new TestEntity(22, "str2"),
-                    new TestGenericEntity<TestEntity>(new TestEntity(33, "str3"), "str4"),
-                    builder.build(), null, "objTestVal");
+            retryTestBean.testExpCall(RetryTestBean.paramA, RetryTestBean.paramB, RetryTestBean.paramC, RetryTestBean.paramD,
+                    RetryTestBean.paramE, RetryTestBean.paramF, RetryTestBean.paramG, RetryTestBean.paramH,
+                    RetryTestBean.paramI, RetryTestBean.paramJ, RetryTestBean.paramNullTest, RetryTestBean.paramObjTest);
         } catch (Exception ex) {
             System.out.println("异常信息：" + ex.getMessage());
         }
         Assert.isTrue(RetryTestBean.counter.get() == 3, "重试次数不正确");
         BeanRetryInfo savedInfo = BeanRetryInfoTestRepository.savedBeanRetryInfo;
         Assert.notNull(savedInfo, "重试记录未保存");
-        Assert.isTrue(savedInfo.getBeanClass() == RetryTestBean.class.getName(), "保存的bean类名不正确");
+        Assert.isTrue(savedInfo.getBeanClass().equals(RetryTestBean.class.getName()), "保存的bean类名不正确");
         Assert.isTrue(savedInfo.getBeanMethod().equals("testExpCall"), "保存的方法名不正确");
         Assert.isTrue(savedInfo.getExceptionMsg().equals("/ by zero"), "保存的异常信息不正确");
 
@@ -115,7 +96,7 @@ public class RetryTest {
         List<String> realParamTypes = Arrays.asList(
                 Integer.class.getName(), Integer.class.getName(),
                 Boolean.class.getName(), Boolean.class.getName(), HashMap.class.getName(),
-                LinkedList.class.getName(), "java.util.Arrays$ArrayList", TestEntity.class.getName(),
+                LinkedList.class.getName(), ArrayList.class.getName(), TestEntity.class.getName(),
                 TestGenericEntity.class.getName(),
                 BaseRequest.class.getName()
         );
@@ -141,20 +122,10 @@ public class RetryTest {
         System.out.println("testRetryCall start");
 
         // 模拟重试记录保存数据库
-        Map map = new HashMap();
-        map.put("k1", "v1");
-        Builder builder = BaseRequest.newBuilder();
-        builder.setTraceId("traceId001");
-        builder.setUserId("userId001");
-        builder.setOrderId("orderId001");
-        List<String> list = Arrays.asList("1", "2");
-        List<TestEntity> list2 = Arrays.asList(new TestEntity(11, "str2"));
         try {
-            retryTestBean.testExpCall(1, 2, true, false, map,
-                    list, list2,
-                    new TestEntity(22, "str2"),
-                    new TestGenericEntity<TestEntity>(new TestEntity(33, "str3"), "str4"),
-                    builder.build(), null, "objTestVal");
+            retryTestBean.testExpCall(RetryTestBean.paramA, RetryTestBean.paramB, RetryTestBean.paramC, RetryTestBean.paramD,
+                    RetryTestBean.paramE, RetryTestBean.paramF, RetryTestBean.paramG, RetryTestBean.paramH,
+                    RetryTestBean.paramI, RetryTestBean.paramJ, RetryTestBean.paramNullTest, RetryTestBean.paramObjTest);
         } catch (Exception ex) {
             System.out.println("异常信息：" + ex.getMessage());
         }
@@ -180,4 +151,19 @@ public class RetryTest {
         System.out.println("testRetryCall end");
     }
 
+    /**
+     * 测试非重试异常不进行重试，且不保存到数据库
+     */
+    @Test
+    public void testNotRetryExp() {
+        RetryTestBean.clearInfo();
+        System.out.println("testNotRetryExp start");
+        try {
+            retryTestBean.testNoRetryCall(1, "2");
+        } catch (Exception ex) {
+            System.out.println("异常信息：" + ex.getMessage());
+        }
+        Assert.isTrue(RetryTestBean.counter.get() == 1, "调用次数预期为1");
+        Assert.isNull(BeanRetryInfoTestRepository.savedBeanRetryInfo, "重试记录预期不保存");
+    }
 }

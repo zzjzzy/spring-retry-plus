@@ -1,16 +1,8 @@
 package com.github.gitcat.spring.retryplus.test;
 
+import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfo;
 import com.github.gitcat.spring.retryplus.test.assist.BeanRetryInfoTestRepository;
 import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean;
-import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean.TestEntity;
-import com.github.gitcat.spring.retryplus.test.assist.RetryTestBean.TestGenericEntity;
-import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfo;
-import com.github.gitcat.spring.retryplus.test.stub.Hello.BaseRequest;
-import com.github.gitcat.spring.retryplus.test.stub.Hello.BaseRequest.Builder;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,21 +41,10 @@ public class RetryDisableTest {
         RetryTestBean.clearInfo();
         System.out.println("testRetryExp start");
 
-        HashMap map = new HashMap();
-        map.put("k1", "v1");
-        Builder builder = BaseRequest.newBuilder();
-        builder.setTraceId("traceId001");
-        builder.setUserId("userId001");
-        builder.setOrderId("orderId001");
         try {
-            List<String> f = new LinkedList<>();
-            f.add("1");
-            f.add("2");
-            retryTestBean.testExpCall(1, 2, true, false, map,
-                    f, Arrays.asList(new TestEntity(11, "str2")),
-                    new TestEntity(22, "str2"),
-                    new TestGenericEntity<TestEntity>(new TestEntity(33, "str3"), "str4"),
-                    builder.build(), null, "objTestVal");
+            retryTestBean.testExpCall(RetryTestBean.paramA, RetryTestBean.paramB, RetryTestBean.paramC, RetryTestBean.paramD,
+                    RetryTestBean.paramE, RetryTestBean.paramF, RetryTestBean.paramG, RetryTestBean.paramH, RetryTestBean.paramI, RetryTestBean.paramJ,
+                    RetryTestBean.paramNullTest, RetryTestBean.paramObjTest);
         } catch (Exception ex) {
             System.out.println("异常信息：" + ex.getMessage());
         }

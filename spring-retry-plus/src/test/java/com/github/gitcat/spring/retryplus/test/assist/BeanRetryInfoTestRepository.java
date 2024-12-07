@@ -1,7 +1,12 @@
 package com.github.gitcat.spring.retryplus.test.assist;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationConfig;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfo;
 import com.github.gitcat.spring.retryplus.persistent.BeanRetryInfoRepository;
+import com.github.gitcat.spring.retryplus.util.JsonUtil;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -24,7 +29,13 @@ public class BeanRetryInfoTestRepository implements BeanRetryInfoRepository {
 
     @Override
     public boolean saveRetryRecord(BeanRetryInfo beanRetryInfo) {
-        System.out.println("saveRetryRecord:" + beanRetryInfo);
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+            System.out.println("saveRetryRecord:" + objectMapper.writeValueAsString(beanRetryInfo));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
         savedBeanRetryInfo = beanRetryInfo;
         savedBeanRetryInfo.setId(1L);
         return true;

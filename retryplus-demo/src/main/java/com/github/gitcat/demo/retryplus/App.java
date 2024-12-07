@@ -39,6 +39,7 @@ public class App {
         // 因为下次重试时间为30s后，所以这里sleep 31s
         Thread.sleep(31000);
         RetryService retryService = context.getBean(RetryService.class);
+        // 这里执行会报错，日志打印异常，是正常的，因为测试就是异常调用
         retryService.retryAll(10, 10);
         // 执行到这里，预期数据表中的数据retry_times字段值为1
 
