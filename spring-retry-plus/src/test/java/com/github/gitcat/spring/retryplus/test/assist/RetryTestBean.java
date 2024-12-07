@@ -61,7 +61,7 @@ public class RetryTestBean {
     /**
      * 测试正常流程
      */
-    @RetryablePlus
+    @RetryablePlus(idempotent = true)
     public void testCall(int a, Integer b, boolean c, Boolean d,
             Map e, List<String> f, List<TestEntity> g,
             TestEntity h, TestGenericEntity<TestEntity> i,
@@ -93,7 +93,7 @@ public class RetryTestBean {
     /**
      * 测试异常流程
      */
-    @RetryablePlus
+    @RetryablePlus(idempotent = true)
     public void testExpCall(int a, Integer b, boolean c, Boolean d,
             Map e, List<String> f, List<TestEntity> g,
             TestEntity h, TestGenericEntity<TestEntity> i,
@@ -104,7 +104,7 @@ public class RetryTestBean {
         }
     }
 
-    @RetryablePlus(value = NullPointerException.class)
+    @RetryablePlus(value = NullPointerException.class, idempotent = true)
     public void testNoRetryCall(int a, String b)  {
         System.out.println("请求入参：" + a + "," + b);
         counter.getAndIncrement();

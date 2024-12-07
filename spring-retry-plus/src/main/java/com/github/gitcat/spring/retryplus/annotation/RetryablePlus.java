@@ -48,4 +48,10 @@ public @interface RetryablePlus {
      */
     Backoff dbRetryInterval() default @Backoff(delay = 30000, multiplier = 1.5);
 
+    /**
+     * 是否支持幂等，需要重试的方法必须支持幂等，避免多次调用造成数据错误
+     * 此参数必须为true，设计此参数只是为了提示使用者需要注意方法幂等
+     */
+    boolean idempotent();
+
 }

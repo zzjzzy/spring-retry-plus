@@ -18,7 +18,7 @@ public class RetryTestBean {
     /**
      * 测试正常流程
      */
-    @RetryablePlus
+    @RetryablePlus(idempotent = true)
     public void testCall(Object param)  {
         counter.getAndIncrement();
         System.out.println(System.currentTimeMillis() + ": testCall请求入参：" + param);
@@ -27,7 +27,7 @@ public class RetryTestBean {
     /**
      * 测试异常流程
      */
-    @RetryablePlus(dbRetryInterval = @Backoff(delay = 3000, multiplier = 2), dbRetryTimes = 4)
+    @RetryablePlus(dbRetryInterval = @Backoff(delay = 3000, multiplier = 2), dbRetryTimes = 4, idempotent = true)
     public void testExpCall(Object param)  {
         counter.getAndIncrement();
         System.out.println(System.currentTimeMillis() + ": testExpCall请求入参：" + param);

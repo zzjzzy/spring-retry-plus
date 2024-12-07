@@ -6,12 +6,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class DemoService {
 
-    @RetryablePlus
+    @RetryablePlus(idempotent = true)
     public void testNoExpCall(String param) {
         System.out.println("param = " + param);
     }
 
-    @RetryablePlus
+    @RetryablePlus(idempotent = true)
     public void testExpCall(String param) {
         System.out.println("param = " + param);
         throw new RuntimeException("测试异常");
