@@ -1,0 +1,15 @@
+syntax = "proto3";
+package com.github.gitcat;
+option java_package = "com.github.gitcat.spring.retryplus.test.stub";
+
+/**
+ * 公共请求
+ */
+message BaseRequest {
+  // 请求ID
+  string traceId = 1;
+  // 用户ID
+  string userId = 2;
+  // 订单ID
+  string orderId = 3;
+}
